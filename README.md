@@ -1,12 +1,12 @@
-# msp432-ble-gyro-robot
-Bluetooth controlled rover robot using MSP432
-# MSP432 BLE Gyroscope Robot Controller
+# MSP432 BLE Quaternion Tilt/Gesture Controlled Robot
 
 ## Overview
 
-This project transforms a TI-RSLK MAX robot powered by the MSP432P401R microcontroller into a Bluetooth-controlled robotic vehicle using the Adafruit Bluefruit LE UART Friend module and the Bluefruit Connect mobile application.
+This project transforms a TI-RSLK MAX robot powered by the MSP432P401R microcontroller into a Bluetooth-controlled robotic platform using the Adafruit Bluefruit LE UART Friend module and the Bluefruit Connect mobile application.
 
-Unlike traditional button-only control, this system allows real-time robot navigation using a smartphone’s accelerometer and gyroscope, enabling intuitive motion-based driving through phone tilt.
+The robot is controlled entirely through smartphone orientation using quaternion motion data transmitted wirelessly over BLE UART. By tilting or rotating the phone, the user can drive the robot in multiple directions with optional proportional speed control.
+
+This system replaces traditional button-based driving with a more advanced motion-controlled interface.
 
 ---
 
@@ -14,13 +14,24 @@ Unlike traditional button-only control, this system allows real-time robot navig
 
 * Bluetooth Low Energy (BLE) wireless communication
 * UART communication using MSP432 eUSCI_A3
-* Smartphone gyroscope / accelerometer control
-* Forward, reverse, left, and right movement
-* Proportional speed control based on phone tilt angle
-* Adjustable dead zone to prevent unintended movement
-* Safe motor stop when phone is neutral
-* PWM motor speed control
-* Modular driver architecture
+* Quaternion-based phone orientation control
+* Vertical (portrait) motion control
+* 8-directional robot movement:
+
+  * Forward
+  * Backward
+  * Left
+  * Right
+  * Forward-left
+  * Forward-right
+  * Backward-left
+  * Backward-right
+* Optional proportional speed control based on tilt magnitude
+* PWM motor control
+* RGB LED directional feedback
+* Neutral-position automatic stop
+* Dead-zone filtering for stability
+* Real-time motion packet decoding
 
 ---
 
@@ -51,62 +62,116 @@ Unlike traditional button-only control, this system allows real-time robot navig
 
 ---
 
-## Software Architecture
-
-### Main Components
-
-* `main.c` → Main control loop and packet decoding
-* `BLE_UART.c` → BLE UART communication driver
-* `Motor.c` → Motor control using PWM
-* `Clock.c` → Timing functions
-* `GPIO.c` → Pin configuration
-
----
-
-## Bluefruit App Usage
+## Bluefruit App Configuration
 
 ### Setup:
 
-1. Install Bluefruit Connect
-2. Pair with BLE UART module
+1. Install **Bluefruit Connect**
+2. Connect to BLE UART module
 3. Open:
 
    * Controller
-   * Accelerometer mode
-4. Tilt phone to control robot
+   * Quaternion / Orientation Mode
+4. Tilt or rotate phone to control robot
 
 ---
 
 ## Motion Controls
 
-| Phone Position | Robot Action |
-| -------------- | ------------ |
-| Tilt Forward   | Move Forward |
-| Tilt Backward  | Reverse      |
-| Tilt Left      | Turn Left    |
-| Tilt Right     | Turn Right   |
-| Flat           | Stop         |
+| Phone Orientation | Robot Action        |
+| ----------------- | ------------------- |
+| Tilt Forward      | Move Forward        |
+| Tilt Backward     | Reverse             |
+| Tilt Left         | Rotate Left         |
+| Tilt Right        | Rotate Right        |
+| Forward + Right   | Forward-right curve |
+| Forward + Left    | Forward-left curve  |
+| Backward + Right  | Reverse-right curve |
+| Backward + Left   | Reverse-left curve  |
+| Neutral / Flat    | Stop                |
 
 ---
 
-## Speed Control
+## Control Modes
 
-Motor speed increases proportionally with tilt angle.
+### Fixed Speed Mode
+
+Robot moves at preset PWM values.
+
+### Proportional Speed Mode
+
+Motor speed scales dynamically based on phone tilt angle.
 
 ### Formula:
 
-```c
-speed = MOTOR_DUTY_MIN + (abs(tilt) * TILT_SCALE);
+```c id="j55jrx"
+PWM = abs(quaternion_value) * scaling_factor
 ```
+
+More tilt = more speed.
+
+---
+
+## Software Architecture
+
+### Main Components
+
+* `main.c` → Quaternion packet processing and control logic
+* `BLE_UART.c` → BLE UART communication driver
+* `Motor.c` → PWM motor driver
+* `Clock.c` → Delay and timing functions
+* `GPIO.c` → Hardware initialization
+
+---
+
+## Packet Format
+
+### Bluefruit Quaternion Packet:
+
+```txt id="stl1sr"
+!Q qx qy qz qw checksum
+```
+
+### Packet Contents:
+
+* `qx` → Forward/backward orientation
+* `qy` → Left/right orientation
+* `qz` → Rotation axis
+* `qw` → Quaternion magnitude
+
+---
+
+## Directional Logic
+
+The software analyzes:
+
+* `qx` for vertical tilt
+* `qy` for horizontal tilt
+
+Motor outputs are determined by threshold ranges and combined tilt states.
+
+---
+
+## RGB LED Indicators
+
+| Color  | Meaning           |
+| ------ | ----------------- |
+| Green  | Forward           |
+| Blue   | Backward          |
+| Yellow | Left              |
+| Pink   | Right             |
+| White  | Diagonal movement |
+| Red    | Stop              |
 
 ---
 
 ## Safety Features
 
-* Dead zone filtering
-* PWM clamping
-* Automatic stop on invalid packets
-* Neutral stop mode
+* Automatic stop on invalid BLE packets
+* Dead zone threshold
+* PWM duty cycle clamping
+* Neutral position stop
+* Controlled delay for stability
 
 ---
 
@@ -114,8 +179,8 @@ speed = MOTOR_DUTY_MIN + (abs(tilt) * TILT_SCALE);
 
 ### Clone repository:
 
-```bash
-git clone https://github.com/YourUsername/msp432-ble-gyro-robot.git
+```bash id="5yj7l8"
+git clone https://github.com/YourUsername/msp432-ble-quaternion-robot.git
 ```
 
 ### Open in Code Composer Studio:
@@ -128,7 +193,7 @@ git clone https://github.com/YourUsername/msp432-ble-gyro-robot.git
 
 ## Recommended `.gitignore`
 
-```txt
+```txt id="zqvv6l"
 Debug/
 Release/
 *.out
@@ -137,25 +202,28 @@ Release/
 
 ---
 
-## Future Improvements
+## Educational Concepts Demonstrated
 
-* Differential steering
-* Steering smoothing
-* Turbo mode
-* Sensor fusion
-* Obstacle avoidance
-* PID steering correction
+* Embedded systems programming
+* UART communication
+* Bluetooth Low Energy
+* Quaternion mathematics
+* PWM motor control
+* Real-time robotics
+* Gesture-based interfaces
+* Sensor fusion concepts
 
 ---
 
-## Educational Concepts Demonstrated
+## Future Improvements
 
-* UART protocol
-* BLE communication
-* Embedded systems programming
-* PWM motor control
-* Sensor-based robotics
-* Real-time control systems
+* Horizontal/landscape control mode
+* Obstacle avoidance
+* PID steering stabilization
+* Adjustable sensitivity via app
+* Gesture recognition
+* Autonomous assist mode
+* Live telemetry feedback
 
 ---
 
@@ -179,4 +247,4 @@ California State University, Northridge
 
 ## License
 
-This project is intended for educational and academic use.
+This project is intended for educational, academic, and demonstration purposes.
